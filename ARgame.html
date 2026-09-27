@@ -2,69 +2,81 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Geo AR Quiz — เกม AR ตอบชื่้อสถานท่ท้งภูมิศาสต</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Geo AR Quiz — เกม AR ตอบชื่อสถานที่ทางภูมิศาสตร์</title>
+
+<!-- โหลด A-Frame และ AR.js CDN เวอร์ชันเสถียรที่สุด -->
+<script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+<script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
 <style>
+/* ================= CSS ================= */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overflow: hidden; background: #070b18; color: #e6edf7;
-  font-family: "Sarabun", "Segoe UI", Tahoma, sans-serif; }
-video  { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
-canvas { position: fixed; inset: 0; z-index: 1; }
+  font-family: "Sarabun", "Segoe UI", Tahoma, sans-serif; user-select: none; }
+
+/* ซ่อนและจัดระเบียบปุ่ม UI ของ A-Frame/AR.js */
+.a-enter-vr, .a-orientation-modal { display: none !important; }
+body { position: relative; }
+
 .hidden { display: none !important; }
-.screen { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column;
+
+/* หน้าต้อนรับ และ สรุปผล */
+.screen { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 14px; padding: 20px; text-align: center;
   background: radial-gradient(1200px 600px at 50% -10%, #16233f 0%, #070b18 60%); }
 .logo { font-size: 64px; }
-h1 { font-size: 34px; } h2 { font-size: 28px; }
-.sub { color: #9fb3d1; }
-.lib { font-size: 13px; color: #9fb3d1; background: rgba(255,255,255,.05);
-  border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 8px 14px; max-width: 430px; }
-.lib.ok { color: #4ade80; border-color: rgba(74,222,128,.4); }
-.lib.bad { color: #f87171; border-color: rgba(248,113,113,.4); }
+h1 { font-size: 32px; font-weight: 800; }
+h2 { font-size: 28px; }
+.sub { color: #9fb3d1; font-size: 15px; }
 .howto { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
   border-radius: 14px; padding: 12px 18px; max-width: 430px; text-align: left;
-  font-size: 15px; line-height: 1.8; }
-.row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-.btn { border: 0; border-radius: 12px; padding: 13px 20px; font-size: 16px; cursor: pointer; font-family: inherit; }
+  font-size: 14px; line-height: 1.7; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+.btn { border: 0; border-radius: 12px; padding: 13px 20px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; transition: 0.2s; }
 .btn.primary { background: linear-gradient(135deg, #38bdf8, #6366f1); color: #fff;
   box-shadow: 0 8px 24px rgba(56,189,248,.35); }
 .btn.ghost { background: rgba(255,255,255,.1); color: #e6edf7; border: 1px solid rgba(255,255,255,.18); }
-.btn:active { transform: scale(.97); }
+.btn:active { transform: scale(.96); }
 .note { color: #fbbf24; font-size: 13px; max-width: 430px; }
-#hud { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column;
+
+/* HUD หน้าจอเล่นเกม */
+#hud { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column;
   padding: 12px; pointer-events: none; }
 .topbar { display: flex; justify-content: space-between; gap: 8px; }
-.chip { background: rgba(7,11,24,.72); border: 1px solid rgba(255,255,255,.14);
-  border-radius: 999px; padding: 8px 14px; font-size: 15px; backdrop-filter: blur(6px); }
+.chip { background: rgba(7,11,24,.82); border: 1px solid rgba(255,255,255,.18);
+  border-radius: 999px; padding: 8px 14px; font-size: 14px; font-weight: 600; backdrop-filter: blur(6px); }
 .timertrack { height: 6px; border-radius: 999px; background: rgba(255,255,255,.15);
   margin-top: 10px; overflow: hidden; }
-.timerfill { height: 100%; width: 100%; background: linear-gradient(90deg, #34d399, #fbbf24, #f87171); }
-.hint { position: absolute; top: 38%; left: 50%; transform: translate(-50%,-50%);
-  background: rgba(7,11,24,.8); border: 1px solid rgba(255,255,255,.18);
-  padding: 14px 20px; border-radius: 14px; font-size: 16px; text-align: center; }
-#questionCard { margin: auto auto 0; pointer-events: auto; background: rgba(7,11,24,.82);
-  border: 1px solid rgba(255,255,255,.14); border-radius: 18px; padding: 14px;
-  backdrop-filter: blur(8px); max-width: 520px; width: 100%; }
+.timerfill { height: 100%; width: 100%; background: linear-gradient(90deg, #34d399, #fbbf24, #f87171); transition: width 0.1s linear; }
+
+.hint { position: absolute; top: 35%; left: 50%; transform: translate(-50%,-50%);
+  background: rgba(7,11,24,.85); border: 1px solid rgba(255,255,255,.18);
+  padding: 12px 20px; border-radius: 14px; font-size: 15px; text-align: center; color: #fbbf24; }
+
+#questionCard { margin: auto auto 12px; pointer-events: auto; background: rgba(7,11,24,.88);
+  border: 1px solid rgba(255,255,255,.18); border-radius: 18px; padding: 16px;
+  backdrop-filter: blur(10px); max-width: 500px; width: 100%; }
 .q-label { font-size: 13px; color: #9fb3d1; text-align: center; }
-.q-name { font-size: 22px; font-weight: 700; text-align: center; margin: 6px 0 12px; }
+.q-name { font-size: 20px; font-weight: 700; text-align: center; margin: 6px 0 14px; color: #38bdf8; }
 .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .ans { border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.08); color: #e6edf7;
-  border-radius: 12px; padding: 12px 10px; font-size: 16px; font-family: inherit; cursor: pointer; }
+  border-radius: 12px; padding: 12px 10px; font-size: 15px; font-family: inherit; cursor: pointer; transition: 0.15s; }
 .ans:hover { background: rgba(255,255,255,.16); }
 .ans:disabled { cursor: default; opacity: .85; }
-.ans.correct { background: #16a34a; border-color: #22c55e; }
-.ans.wrong { background: #dc2626; border-color: #ef4444; animation: shake .4s; }
+.ans.correct { background: #16a34a !important; border-color: #22c55e !important; color: #fff; }
+.ans.wrong { background: #dc2626 !important; border-color: #ef4444 !important; color: #fff; animation: shake .4s; }
 @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
-.toast { position: fixed; top: 30%; left: 50%; transform: translate(-50%,-50%); z-index: 25;
-  padding: 14px 22px; border-radius: 14px; font-size: 18px; font-weight: 700;
-  background: rgba(7,11,24,.88); border: 1px solid rgba(255,255,255,.2); }
+
+.toast { position: fixed; top: 25%; left: 50%; transform: translate(-50%,-50%); z-index: 60;
+  padding: 12px 20px; border-radius: 12px; font-size: 16px; font-weight: 700;
+  background: rgba(7,11,24,.92); border: 1px solid rgba(255,255,255,.2); text-align: center; }
 .toast.ok  { border-color: #22c55e; color: #4ade80; }
 .toast.bad { border-color: #ef4444; color: #f87171; }
-.final-score { font-size: 44px; font-weight: 800; color: #38bdf8; }
-@media (max-width: 480px) { .q-name { font-size: 18px; } .ans { font-size: 14px; } }
+
+.final-score { font-size: 48px; font-weight: 800; color: #38bdf8; }
+@media (max-width: 480px) { .q-name { font-size: 17px; } .ans { font-size: 13px; } }
 </style>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/build/three.js">
-    <link rel="stylesheet" href="https://aframe.io/releases/1.3.0/three.min.js">
 </head>
 <body>
 
@@ -72,35 +84,36 @@ h1 { font-size: 34px; } h2 { font-size: 28px; }
 <div id="startScreen" class="screen">
   <div class="logo">🌍</div>
   <h1>Geo AR Quiz</h1>
-  <p class="sub">เกม AR ตอบชื่้่อสถานท่ท้งภูมิศาสต</p>
-  <div id="libStatus" class="lib">📦 กำลังตรวจไลบรารี…</div>
+  <p class="sub">เกม AR ตอบชื่อสถานที่ทางภูมิศาสตร์</p>
   <div class="howto">
-    <p>1. กด <b>ดู/พิมพ์ marker</b> แล้วพิมพ์ภาพ marker</p>
-    <p>2. เปิดเกมบนมือถือ (ตองเป็น <b>HTTPS</b>) แล้วอนุญาตใช้กล้อง</p>
-    <p>3. เล็งกล้องไปที่ marker → โลก 3D + คำถามจะปรากฏ</p>
-    <p>4. เลือกคำตอบใหถกภายใน 20 วินาที!</p>
+    <p>1. กด <b>ดู/พิมพ์มาร์กเกอร์</b> แล้วเปิดภาพมาร์กเกอร์ (Hiro)</p>
+    <p>2. เปิดเกมบนมือถือผ่าน <b>HTTPS</b> หรือ Localhost แล้วเปิดกล้อง</p>
+    <p>3. ส่องกล้องไปที่มาร์กเกอร์ → โลก 3D จะปรากฏขึ้น!</p>
+    <p>4. เลือกคำตอบที่ถูกต้องภายในเวลา 20 วินาที</p>
   </div>
   <div class="row">
-    <button id="btnMarker" class="btn ghost">🖨️ ดู/พิมพ์ marker</button>
+    <button id="btnMarker" class="btn ghost">🖨️ ดู/พิมพ์มาร์กเกอร์ (Hiro)</button>
   </div>
   <div class="row">
     <button id="btnAR" class="btn primary">🕹️ เริ่มเกม AR</button>
-    <button id="btn2D" class="btn ghost">💻 เล่นแบบ 2D (ไม่ตอง AR)</button>
+    <button id="btn2D" class="btn ghost">💻 เล่นแบบ 2D (โหมดปกติ)</button>
   </div>
-  <p class="note">⚠️ กล้องทำงานไดเฉพาะบน HTTPS หรือ localhost (เช่่น GitHub Pages)</p>
+  <p class="note">⚠️ การใช้งานกล้องต้องทำผ่าน HTTPS หรือ localhost เท่านั้น</p>
 </div>
 
-<!-- ============ HUD ระหว่างเล่น ============ -->
+<!-- ============ HUD ระหว่างเล่นเกม ============ -->
 <div id="hud" class="hidden">
   <div class="topbar">
-    <div class="chip">🏆 <span id="score">0</span></div>
-    <div class="chip" id="qNum">ข้อท่ 1 / 12</div>
+    <div class="chip">🏆 คะแนน: <span id="score">0</span></div>
+    <div class="chip" id="qNum">ข้อที่ 1 / 12</div>
     <div class="chip">⏱️ <span id="time">20</span> วิ</div>
   </div>
   <div class="timertrack"><div id="timerBar" class="timerfill"></div></div>
-  <div id="noMarker" class="hint">📷 เอากล้องเล็งไปที่ marker…</div>
+
+  <div id="noMarker" class="hint">📷 เอากล้องเล็งไปที่มาร์กเกอร์ Hiro…</div>
+
   <div id="questionCard">
-    <div class="q-label">สถานท่ีน้ตั้งอยู่ที่ไหน?</div>
+    <div class="q-label">สถานที่นี้ตั้งอยู่ที่ไหน?</div>
     <div id="placeName" class="q-name">—</div>
     <div id="answers" class="answers"></div>
   </div>
@@ -115,101 +128,58 @@ h1 { font-size: 34px; } h2 { font-size: 28px; }
   <div id="finalScore" class="final-score">0 / 12</div>
   <p id="finalMsg"></p>
   <div class="row">
-    <button id="btnAgain" class="btn primary">🔄 เล่นใหม่</button>
+    <button id="btnAgain" class="btn primary">🔄 เล่นอีกครั้ง</button>
     <button id="btnHome" class="btn ghost">🏠 หน้าแรก</button>
   </div>
 </div>
 
+<!-- ============ A-FRAME AR SCENE ============ -->
+<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;" vr-mode-ui="enabled: false">
+  <a-marker preset="hiro" id="hiroMarker">
+    <!-- วัตถุ 3D จำลองลูกโลก และวงแหวน -->
+    <a-entity id="arContainer" position="0 0.5 0">
+      <!-- โลก 3D -->
+      <a-sphere id="arGlobe" radius="0.4" color="#4da6ff" wireframe="false" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear"></a-sphere>
+      <!-- ตาข่ายรองพื้นโลก -->
+      <a-sphere radius="0.41" color="#bfe3ff" wireframe="true" opacity="0.35" animation="property: rotation; to: 0 -360 0; loop: true; dur: 12000; easing: linear"></a-sphere>
+      <!-- วงแหวน -->
+      <a-torus id="arRing" radius="0.6" radius-tubular="0.015" color="#ffd54d" rotation="70 0 0" animation="property: rotation; to: 70 0 360; loop: true; dur: 6000; easing: linear"></a-torus>
+      <!-- ป้ายชื่อสถานที่แบบ 3D -->
+      <a-text id="arText" value="Geo AR Quiz" align="center" position="0 0.7 0" scale="0.8 0.8 0.8" color="#ffffff" font="kelsonsans"></a-text>
+    </a-entity>
+  </a-marker>
+  <a-entity camera></a-entity>
+</a-scene>
+
 <script>
-/* =========================================================
-   Geo AR Quiz — ไฟลเดยว (Fixed v2)
-   แก้น: 1) URL ไลบราร AR.js ท่ถกตอง + fallback
-          2) ไฟล marker เปน .patt (ทาง treetree ท่ถก)
-   ========================================================= */
 'use strict';
-
-/* ---------- 0) URL ไลบรารี + ไฟล marker ---------- */
-const THREE_URLS = [
-  'https://cdnjs.cloudflare.com/ajax/libs/three.js/r119/three.min.js',
-  'https://aframe.io/releases/1.3.0/three.min.js',
-];
-const AR_URLS = [
-  'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/three/build/ar-three.js',
-  'https://raw.githubusercontent.com/AR-js-org/AR.js/3.4.5/three/build/ar-three.js',
-];
-const PATTERN_URL =
-  'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/three/examples/marker-based/patterns/hiro.patt';
-
-function loadScript(url, timeout = 15000) {
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    let done = false;
-    const timer = setTimeout(() => {
-      if (!done) { done = true; s.remove(); reject(new Error('timeout: ' + url)); }
-    }, timeout);
-    s.src = url;
-    s.onload  = () => { if (!done) { done = true; clearTimeout(timer); resolve(url); } };
-    s.onerror = () => { if (!done) { done = true; clearTimeout(timer); s.remove(); reject(new Error('error: ' + url)); } };
-    document.head.appendChild(s);
-  });
-}
-async function tryLoad(urls, checkFn) {
-  for (const url of urls) {
-    try {
-      const used = await loadScript(url);
-      if (checkFn()) { console.info('✅ โหลดได:', used); return true; }
-    } catch (e) { console.warn('❌ ล้มเหลว:', e.message); }
-  }
-  return false;
-}
-const libsPromise = (async () => {
-  const THREE_ok = await tryLoad(THREE_URLS, () => typeof THREE !== 'undefined');
-  const AR_ok = THREE_ok ? await tryLoad(AR_URLS, () => typeof AR !== 'undefined') : false;
-  return { THREE: THREE_ok, AR: AR_ok };
-})();
-
-function updateLibStatus(libs) {
-  const el = document.getElementById('libStatus');
-  if (libs.THREE && libs.AR) {
-    el.textContent = '✅ Three.js + AR.js พรอมใชงาน';
-    el.className = 'lib ok';
-  } else if (libs.THREE) {
-    el.textContent = '⚠️ โหลด AR.js ล้มเหลว — AR จะไมทำงาน (2D ยังเล่่นได) ตรวจอินเตอรเน็ตแล้วรีเฟรช';
-    el.className = 'lib bad';
-  } else {
-    el.textContent = '❌ โหลดไลบรารีไมสำเร็จ — ตรวจอินเตอรเน็ตแล้วรีเฟรช (2D อาจไมใชงานได)';
-    el.className = 'lib bad';
-  }
-}
-libsPromise.then(updateLibStatus);
 
 /* ---------- 1) ข้อมูลคำถาม ---------- */
 const QUESTIONS = [
-  { name: 'ภูเขาเอเวอเรสต์ (Everest)',        answer: 'เนปาล',             options: ['ภูฏาน', 'เนปาล', 'จีน', 'อินเดีย'] },
-  { name: 'พีระมิดกีซา (Pyramids of Giza)',    answer: 'อียิปต์',           options: ['เม็กซิโก', 'กรีซ', 'อียิปต์', 'อิรัก'] },
-  { name: 'น้ำตกไนแอกการา (Niagara Falls)',   answer: 'สหรัฐฯ–แคนาดา',     options: ['สหรัฐฯ–แคนาดา', 'บราซิล–ปารากวัย', 'ไนจีเรีย', 'อินโดนีเซีย'] },
-  { name: 'นครวัด (Angkor Wat)',              answer: 'กัมพูชา',           options: ['ไทย', 'เมียนมา', 'กัมพูชา', 'ลาว'] },
-  { name: 'หอไอเฟล (Eiffel Tower)',            answer: 'ฝรั่งเศส',          options: ['สเปน', 'อิตาลี', 'เยอรมนี', 'ฝรั่งเศส'] },
-  { name: 'มาชูปิกชู (Machu Picchu)',           answer: 'เปรู',              options: ['เปรู', 'โคลอมเบีย', 'เม็กซิโก', 'โบลิเวีย'] },
-  { name: 'แกรนด์แคนยอน (Grand Canyon)',       answer: 'สหรัฐฯ (แอริโซนา)',  options: ['เม็กซิโก', 'สหรัฐฯ (แอริโซนา)', 'อาร์เจนตินา', 'ชิลี'] },
-  { name: 'ทาจมาฮาล (Taj Mahal)',              answer: 'อินเดีย',            options: ['ปากีสถาน', 'บังกลาเทศ', 'อินเดีย', 'ศรีลังกา'] },
-  { name: 'ซิดนีย์โอเปร่าเฮาส์ (Sydney Opera House)', answer: 'ออสเตรเลีย',    options: ['ออสเตรเลีย', 'นิวซีแลนด์', 'แอฟริกาใต้', 'บราซิล'] },
-  { name: 'แนวปะการังเกรตแบริเออร์รีฟ (Great Barrier Reef)', answer: 'ออสเตรเลีย', options: ['ฟิลิปปินส์', 'อินโดนีเซีย', 'ออสเตรเลีย', 'ปาปัวนิวกินี'] },
-  { name: 'แม่น้ำอะเมซอน (Amazon River)',       answer: 'อเมริกาใต้ (บราซิล)', options: ['อเมริกาเหนือ', 'ยุโรป', 'อเมริกาใต้ (บราซิล)', 'แอฟริกา'] },
-  { name: 'เครมลิน (Kremlin)',                 answer: 'รัสเซีย',           options: ['รัสเซีย', 'ตุรกี', 'ฟินแลนด์', 'โปแลนด์'] },
+  { name: 'ยอดเขายอดเขาเอเวอเรสต์ (Everest)', answer: 'เนปาล', options: ['ภูฏาน', 'เนปาล', 'จีน', 'อินเดีย'] },
+  { name: 'พีระมิดกีซ่า (Pyramids of Giza)', answer: 'อียิปต์', options: ['เม็กซิโก', 'กรีซ', 'อียิปต์', 'อิรัก'] },
+  { name: 'น้ำตกไนแอการา (Niagara Falls)', answer: 'สหรัฐฯ–แคนาดา', options: ['สหรัฐฯ–แคนาดา', 'บราซิล–ปารากวัย', 'ไนจีเรีย', 'อินโดนีเซีย'] },
+  { name: 'นครวัด (Angkor Wat)', answer: 'กัมพูชา', options: ['ไทย', 'เมียนมา', 'กัมพูชา', 'ลาว'] },
+  { name: 'หอไอเฟล (Eiffel Tower)', answer: 'ฝรั่งเศส', options: ['สเปน', 'อิตาลี', 'เยอรมนี', 'ฝรั่งเศส'] },
+  { name: 'มาชูปิกชู (Machu Picchu)', answer: 'เปรู', options: ['เปรู', 'โคลอมเบีย', 'เม็กซิโก', 'โบลิเวีย'] },
+  { name: 'แกรนด์แคนยอน (Grand Canyon)', answer: 'สหรัฐฯ (แอริโซนา)', options: ['เม็กซิโก', 'สหรัฐฯ (แอริโซนา)', 'อาร์เจนตินา', 'ชิลี'] },
+  { name: 'ทาจมาฮาล (Taj Mahal)', answer: 'อินเดีย', options: ['ปากีสถาน', 'บังกลาเทศ', 'อินเดีย', 'ศรีลังกา'] },
+  { name: 'ซิดนีย์โอเปร่าเฮาส์ (Sydney Opera House)', answer: 'ออสเตรเลีย', options: ['ออสเตรเลีย', 'นิวซีแลนด์', 'แอฟริกาใต้', 'บราซิล'] },
+  { name: 'แนวปะการังเกรตแบเรียรีฟ (Great Barrier Reef)', answer: 'ออสเตรเลีย', options: ['ฟิลิปปินส์', 'อินโดนีเซีย', 'ออสเตรเลีย', 'ปาปัวนิวกินี'] },
+  { name: 'แม่น้ำอะเมซอน (Amazon River)', answer: 'อเมริกาใต้ (บราซิล)', options: ['อเมริกาเหนือ', 'ยุโรป', 'อเมริกาใต้ (บราซิล)', 'แอฟริกา'] },
+  { name: 'เครมลิน (Kremlin)', answer: 'รัสเซีย', options: ['รัสเซีย', 'ตุรกี', 'ฟินแลนด์', 'โปแลนด์'] },
 ];
 const TIME_PER_Q = 20;
 
 /* ---------- 2) DOM & สถานะ ---------- */
 const $ = (id) => document.getElementById(id);
-const startScreen = $('startScreen'), resultScreen = $('resultScreen');
-const hud = $('hud'), noMarker = $('noMarker'), toast = $('toast');
-const elScore = $('score'), elQNum = $('qNum'), elTime = $('time');
-const elTimerBar = $('timerBar'), elPlace = $('placeName'), elAnswers = $('answers');
+const startScreen = $('startScreen'), resultScreen =$('resultScreen');
+const hud = $('hud'), noMarker = $('noMarker'), toast =$('toast');
+const elScore = $('score'), elQNum = $('qNum'), elTime =$('time');
+const elTimerBar = $('timerBar'), elPlace = $('placeName'), elAnswers =$('answers');
 
-const ar = { mode: '2d', inited: false, found: false, group: null, globe: null, ring: null, label: null };
+const ar = { mode: '2d', found: false };
 const quiz = { list: [], i: 0, score: 0, playing: false, locked: false, paused: false, remaining: 0, tick: null };
-let pulseAmp = 0;
 
 /* ---------- 3) เสียง (Web Audio) ---------- */
 let audioCtx = null;
@@ -223,7 +193,7 @@ function beep(freq, dur, type = 'sine', delay = 0) {
   const o = audioCtx.createOscillator(), g = audioCtx.createGain();
   o.type = type; o.frequency.value = freq;
   g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.2, t0 + 0.02);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
   o.connect(g); g.connect(audioCtx.destination);
   o.start(t0); o.stop(t0 + dur + 0.05);
@@ -242,14 +212,9 @@ function shuffle(a) {
   }
   return a;
 }
-async function checkPattern() {
-  try { const r = await fetch(PATTERN_URL); return r.ok; }
-  catch (e) { console.warn('pattern fetch failed:', e); return false; }
-}
 
-async function startGame(mode) {
+function startGame(mode) {
   ensureAudio();
-  const libs = await libsPromise;
   ar.mode = mode;
   startScreen.classList.add('hidden');
   resultScreen.classList.add('hidden');
@@ -261,30 +226,9 @@ async function startGame(mode) {
   elScore.textContent = '0';
 
   if (mode === 'ar') {
-    if (!libs.AR) {
-      ar.mode = '2d'; quiz.paused = false;
-      noMarker.classList.add('hidden');
-      showToast('⚠️ AR.js ยังไมโหลด (ตรวจอินเตอรเน็ตแล้วรีเฟรช) — สลับไป 2D ก่อน', 'bad', 4000);
-    } else {
-      const pat = await checkPattern();
-      if (!pat) {
-        ar.mode = '2d'; quiz.paused = false;
-        noMarker.classList.add('hidden');
-        showToast('⚠️ โหลดข้อมูล marker ไม่ได้ (ตรวจอินเตอรเน็ตแล้วรีเฟรช) — สลับไป 2D', 'bad', 4000);
-      } else {
-        try {
-          initAR();
-          quiz.paused = true;
-          noMarker.innerHTML = '📷 เอากล้องเล็งไปที่ <b>marker</b> เพื่อเริ่มเกม';
-          noMarker.classList.remove('hidden');
-        } catch (err) {
-          console.error('AR init failed:', err);
-          ar.mode = '2d'; quiz.paused = false;
-          noMarker.classList.add('hidden');
-          showToast('เริ่ม AR ไมได (ตอง HTTPS / กล้องถูกบล็อก) — สลับไป 2D', 'bad', 4000);
-        }
-      }
-    }
+    quiz.paused = !ar.found;
+    noMarker.innerHTML = '📷 เอากล้องเล็งไปที่<b>มาร์กเกอร์ Hiro</b>';
+    noMarker.classList.toggle('hidden', ar.found);
   } else {
     quiz.paused = false;
     noMarker.classList.add('hidden');
@@ -301,6 +245,7 @@ function showToast(msg, kind = 'bad', ms = 1800) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { toast.style.display = 'none'; }, ms);
 }
+
 function renderTime() {
   elTime.textContent = Math.ceil(quiz.remaining);
   elTimerBar.style.width = (quiz.remaining / TIME_PER_Q * 100) + '%';
@@ -324,7 +269,7 @@ function nextQuestion() {
   if (quiz.i >= quiz.list.length) return finishGame();
   quiz.locked = false;
   const q = quiz.list[quiz.i];
-  elQNum.textContent = `ข้อท่ ${quiz.i + 1} / ${quiz.list.length}`;
+  elQNum.textContent = `ข้อที่ ${quiz.i + 1} / ${quiz.list.length}`;
   elPlace.textContent = q.name;
   elAnswers.innerHTML = '';
   q.options.forEach((opt, idx) => {
@@ -334,16 +279,22 @@ function nextQuestion() {
     b.onclick = () => answer(idx, b);
     elAnswers.appendChild(b);
   });
-  setLabel(q.name);
-  setRingColor(0xffd54d);
+  
+  // อัปเดตข้อความบนโมเดล AR 3D
+  const arText = $('arText');
+  if (arText) arText.setAttribute('value', q.name);
+  setRingColor('#ffd54d');
+  
   startTimer(TIME_PER_Q);
 }
+
 function markAll(q) {
   [...elAnswers.children].forEach(b => {
     b.disabled = true;
     if (b.textContent === q.answer) b.classList.add('correct');
   });
 }
+
 function answer(idx, btn) {
   if (quiz.locked || !quiz.playing) return;
   quiz.locked = true; stopTimer();
@@ -352,26 +303,28 @@ function answer(idx, btn) {
   if (q.options[idx] === q.answer) {
     btn.classList.add('correct');
     quiz.score++; elScore.textContent = quiz.score;
-    showToast('✅ ถูกตอง! ' + q.answer, 'ok');
-    setRingColor(0x22c55e); sfx.ok(); pulseAmp = 1;
+    showToast('✅ ถูกต้อง! ' + q.answer, 'ok');
+    setRingColor('#22c55e'); sfx.ok();
   } else {
     btn.classList.add('wrong');
     showToast('❌ ผิด! คำตอบที่ถูก: ' + q.answer, 'bad');
-    setRingColor(0xef4444); sfx.bad(); pulseAmp = -1;
+    setRingColor('#ef4444'); sfx.bad();
   }
   quiz.i++;
   setTimeout(nextQuestion, 1800);
 }
+
 function answerTimeout() {
   if (quiz.locked || !quiz.playing) return;
   quiz.locked = true; stopTimer();
   const q = quiz.list[quiz.i];
   markAll(q);
   showToast('⏰ เวลาหมด! คำตอบ: ' + q.answer, 'bad');
-  setRingColor(0xef4444); sfx.bad(); pulseAmp = -1;
+  setRingColor('#ef4444'); sfx.bad();
   quiz.i++;
   setTimeout(nextQuestion, 1800);
 }
+
 function finishGame() {
   quiz.playing = false; stopTimer();
   hud.classList.add('hidden');
@@ -380,167 +333,64 @@ function finishGame() {
   $('finalScore').textContent = score + ' / ' + total;
   $('finalMsg').textContent =
     pct >= 90 ? '🏆 ยอดนักภูมิศาสตร์!' :
-    pct >= 60 ? '🎉 เก่งมาก! อีกนิดเดียวก็เพอร์เฟกต' :
+    pct >= 60 ? '🎉 เก่งมาก! อีกนิดเดียวก็เพอร์เฟกต์' :
                 '📚 ฝึกเล่นใหม่อีกครั้งนะ';
   resultScreen.classList.remove('hidden');
   sfx.end();
 }
 
-/* ---------- 7) ส่วน AR (Three.js + AR.js) ---------- */
-function initAR() {
-  if (ar.inited) return;
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 10000);
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(devicePixelRatio);
-  renderer.setSize(innerWidth, innerHeight);
-  document.body.appendChild(renderer.domElement);
-
-  const tracker = new AR.Tracker();
-  scene.add(tracker);
-
-  // ★ ไฟล marker ท่ถกตอง (hiro.patt จาก folder examples ของ repository)
-  const trackable = tracker.createTrackable(PATTERN_URL);
-
-  const group = new THREE.Object3D();
-  group.position.y = 0.55;
-  const globe = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(0.28, 1),
-    new THREE.MeshLambertMaterial({ color: 0x4da6ff, flatShading: true })
-  );
-  const wire = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(0.285, 1),
-    new THREE.MeshBasicMaterial({ color: 0xbfe3ff, wireframe: true, transparent: true, opacity: .35 })
-  );
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.45, 0.018, 12, 64),
-    new THREE.MeshBasicMaterial({ color: 0xffd54d })
-  );
-  ring.rotation.x = Math.PI / 2.4;
-  const label = makeLabel('Geo AR Quiz');
-  group.add(globe, wire, ring, label);
-  trackable.add(group);
-
-  scene.add(new THREE.AmbientLight(0xffffff, .9));
-  const dl = new THREE.DirectionalLight(0xffffff, .8);
-  dl.position.set(1, 2, 2); scene.add(dl);
-
-  trackable.addEventListener('markerFound', () => {
-    ar.found = true;
-    noMarker.classList.add('hidden');
-    if (quiz.playing && ar.mode === 'ar') quiz.paused = false;
-  });
-  trackable.addEventListener('markerLost', () => {
-    ar.found = false;
-    if (quiz.playing && ar.mode === 'ar') {
-      quiz.paused = true;
-      noMarker.innerHTML = '📷 marker หายไป — เอากล้องเล็งอีกครั้ง';
-      noMarker.classList.remove('hidden');
-    }
-  });
-
-  tracker.init({ sourceType: 'webcam', debugUIhide: true });
-
-  ar.inited = true; ar.group = group; ar.globe = globe; ar.ring = ring; ar.label = label;
-
-  const clock = new THREE.Clock();
-  renderer.setAnimationLoop(() => {
-    const t = clock.getElapsedTime();
-    globe.rotation.y = t * 0.6;
-    wire.rotation.y = -t * 0.4;
-    ring.rotation.z = t * 0.8;
-    group.position.y = 0.55 + Math.sin(t * 2) * 0.02;
-    if (Math.abs(pulseAmp) > 0.01) {
-      group.scale.setScalar(1 + pulseAmp * 0.12 * Math.sin(t * 30));
-      pulseAmp *= 0.93;
-    } else {
-      group.scale.setScalar(1); pulseAmp = 0;
-    }
-    renderer.render(scene, camera);
-  });
-
-  addEventListener('resize', () => {
-    camera.aspect = innerWidth / innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth, innerHeight);
-  });
+function setRingColor(hex) {
+  const ring = $('arRing');
+  if (ring) ring.setAttribute('color', hex);
 }
 
-/* ป้ายข้อความ 3D (Canvas Texture) */
-function labelCanvas(text) {
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 256;
-  const x = c.getContext('2d');
-  x.fillStyle = 'rgba(8,15,35,.8)';
-  x.beginPath();
-  x.moveTo(60, 0); x.arcTo(1024, 0, 1024, 256, 60); x.arcTo(1024, 256, 0, 256, 60);
-  x.arcTo(0, 256, 0, 0, 60); x.arcTo(0, 0, 1024, 0, 60); x.closePath(); x.fill();
-  let size = 88;
-  x.font = 'bold ' + size + 'px "Segoe UI", Tahoma, sans-serif';
-  while (x.measureText(text).width > 920 && size > 28) {
-    size -= 4;
-    x.font = 'bold ' + size + 'px "Segoe UI", Tahoma, sans-serif';
+/* ---------- 7) ตรวจจับ AR Marker Event ---------- */
+window.addEventListener('load', () => {
+  const marker = $('hiroMarker');
+  if (marker) {
+    marker.addEventListener('markerFound', () => {
+      ar.found = true;
+      noMarker.classList.add('hidden');
+      if (quiz.playing && ar.mode === 'ar') quiz.paused = false;
+    });
+    marker.addEventListener('markerLost', () => {
+      ar.found = false;
+      if (quiz.playing && ar.mode === 'ar') {
+        quiz.paused = true;
+        noMarker.innerHTML = '📷 มาร์กเกอร์หายไป — เอากล้องเล็งอีกครั้ง';
+        noMarker.classList.remove('hidden');
+      }
+    });
   }
-  x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle';
-  x.fillText(text, 512, 128);
-  return c;
-}
-function makeLabel(text) {
-  const tex = new THREE.CanvasTexture(labelCanvas(text));
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
-  sprite.scale.set(1.2, 0.3, 1);
-  sprite.position.y = 0.78;
-  return sprite;
-}
-function setLabel(text) {
-  if (!ar.inited || !ar.label) return;
-  const old = ar.label.material.map;
-  ar.label.material.map = new THREE.CanvasTexture(labelCanvas(text));
-  ar.label.material.needsUpdate = true;
-  if (old) old.dispose();
-}
-function setRingColor(hex) { if (ar.ring) ar.ring.material.color.setHex(hex); }
+});
 
-/* ---------- 8) หน้าพิมพ์ marker (hiro pattern 7×7) ---------- */
+/* ---------- 8) หน้าพิมพ์มาร์กเกอร์ (Hiro Marker Standard) ---------- */
 function openMarkerPrint() {
-  const H = [
-    [1,1,1,1,1,1,1],
-    [1,0,0,0,0,0,1],
-    [1,0,1,1,1,0,1],
-    [1,0,1,1,0,0,1],
-    [1,0,0,1,1,0,1],
-    [1,0,0,0,0,0,1],
-    [1,1,1,1,1,1,1],
-  ];
-  const cells = H.flat().map(v => `<div class="c${v ? '' : ' w'}"></div>`).join('');
   const w = window.open('', '_blank');
   w.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="utf-8">
-  <title>Marker AR — Geo AR Quiz</title>
+  <title>มาร์กเกอร์ AR (Hiro) — Geo AR Quiz</title>
   <style>
     body{font-family:sans-serif;text-align:center;padding:32px;color:#222}
-    .m{width:280px;height:280px;margin:24px auto;display:grid;
-       grid-template-columns:repeat(7,40px);grid-template-rows:repeat(7,40px)}
-    .c{background:#000}.c.w{background:#fff}
+    .img-box { margin: 20px auto; max-width: 300px; border: 2px solid #ccc; padding: 10px; border-radius: 8px; }
+    img { width: 100%; height: auto; }
     .tip{max-width:430px;margin:12px auto;font-size:14px;line-height:1.7}
     button{padding:10px 22px;font-size:16px;border-radius:10px;border:0;
            background:#4f46e5;color:#fff;cursor:pointer}
   </style></head><body>
-  <h2>Marker สำหรับเกม (พิมพ์แล้ววางบนพื้น)</h2>
-  <div class="m">${cells}</div>
-  <p class="tip">💡 เลือกพิมพ์ <b>Scale 100%</b> จะได้ขนาดประมาณ 7×7 ซม.<br>
-  วางบนพื้นราบ แสงสว่าง แล้วเล็งกล้อง</p>
-  <button onclick="window.print()">🖨️ พิมพ์</button>
-  <script>setTimeout(function(){ window.print(); }, 500);<\/script>
+  <h2>มาร์กเกอร์ Hiro สำหรับเล่นเกม AR</h2>
+  <div class="img-box">
+    <img src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" alt="Hiro Marker">
+  </div>
+  <p class="tip">💡 สามารถเปิดภาพนี้บนหน้าจออุปกรณ์อื่น หรือพิมพ์ลงกระดาษแล้วส่องกล้องเล่นได้เลย</p>
+  <button onclick="window.print()">🖨️ พิมพ์มาร์กเกอร์</button>
   </body></html>`);
   w.document.close();
 }
 
-/* ---------- 9) เชื่อมปุ่ม ---------- */
+/* ---------- 9) เชื่อมปุ่ม event ---------- */
 $('btnAR').onclick     = () => startGame('ar');
-$('btn2D').onclick     = () => startGame('2d');
-$('btnMarker').onclick = openMarkerPrint;
-$('btnAgain').onclick  = () => startGame(ar.mode);
-$('btnHome').onclick   = () => {
+$('btn2D').onclick     = () => startGame('2d');$('btnMarker').onclick = openMarkerPrint;
+$('btnAgain').onclick  = () => startGame(ar.mode);$('btnHome').onclick   = () => {
   resultScreen.classList.add('hidden');
   startScreen.classList.remove('hidden');
 };
