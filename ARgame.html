@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Geo AR Quiz — เกม AR ตอบชื่อสถานที่ทางภูมิศาสตร์</title>
+<style>
+/* ================= CSS ================= */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: #070b18; color: #e6edf7;
+  font-family: "Sarabun", "Segoe UI", Tahoma, sans-serif; }
+
+video  { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+canvas { position: fixed; inset: 0; z-index: 1; }
+.hidden { display: none !important; }
+
+.screen { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px; padding: 20px; text-align: center;
+  background: radial-gradient(1200px 600px at 50% -10%, #16233f 0%, #070b18 60%); }
+.logo { font-size: 64px; }
+h1 { font-size: 34px; }
+h2 { font-size: 28px; }
+.sub { color: #9fb3d1; }
+.howto { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 14px; padding: 12px 18px; max-width: 430px; text-align: left;
+  font-size: 15px; line-height: 1.8; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.btn { border: 0; border-radius: 12px; padding: 13px 20px; font-size: 16px; cursor: pointer; font-family: inherit; }
+.btn.primary { background: linear-gradient(135deg, #38bdf8, #6366f1); color: #fff;
+  box-shadow: 0 8px 24px rgba(56,189,248,.35); }
+.btn.ghost { background: rgba(255,255,255,.1); color: #e6edf7; border: 1px solid rgba(255,255,255,.18); }
+.btn:active { transform: scale(.97); }
+.note { color: #fbbf24; font-size: 13px; max-width: 430px; }
+
+#hud { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column;
+  padding: 12px; pointer-events: none; }
+.topbar { display: flex; justify-content: space-between; gap: 8px; }
+.chip { background: rgba(7,11,24,.72); border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px; padding: 8px 14px; font-size: 15px; backdrop-filter: blur(6px); }
+.timertrack { height: 6px; border-radius: 999px; background: rgba(255,255,255,.15);
+  margin-top: 10px; overflow: hidden; }
+.timerfill { height: 100%; width: 100%; background: linear-gradient(90deg, #34d399, #fbbf24, #f87171); }
+
+.hint { position: absolute; top: 38%; left: 50%; transform: translate(-50%,-50%);
+  background: rgba(7,11,24,.8); border: 1px solid rgba(255,255,255,.18);
+  padding: 14px 20px; border-radius: 14px; font-size: 16px; text-align: center; }
+
+#questionCard { margin: auto auto 0; pointer-events: auto; background: rgba(7,11,24,.82);
+  border: 1px solid rgba(255,255,255,.14); border-radius: 18px; padding: 14px;
+  backdrop-filter: blur(8px); max-width: 520px; width: 100%; }
+.q-label { font-size: 13px; color: #9fb3d1; text-align: center; }
+.q-name { font-size: 22px; font-weight: 700; text-align: center; margin: 6px 0 12px; }
+.answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ans { border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.08); color: #e6edf7;
+  border-radius: 12px; padding: 12px 10px; font-size: 16px; font-family: inherit; cursor: pointer; }
+.ans:hover { background: rgba(255,255,255,.16); }
+.ans:disabled { cursor: default; opacity: .85; }
+.ans.correct { background: #16a34a; border-color: #22c55e; }
+.ans.wrong { background: #dc2626; border-color: #ef4444; animation: shake .4s; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+
+.toast { position: fixed; top: 30%; left: 50%; transform: translate(-50%,-50%); z-index: 25;
+  padding: 14px 22px; border-radius: 14px; font-size: 18px; font-weight: 700;
+  background: rgba(7,11,24,.88); border: 1px solid rgba(255,255,255,.2); }
+.toast.ok  { border-color: #22c55e; color: #4ade80; }
+.toast.bad { border-color: #ef4444; color: #f87171; }
+
+.final-score { font-size: 44px; font-weight: 800; color: #38bdf8; }
+@media (max-width: 480px) { .q-name { font-size: 18px; } .ans { font-size: 14px; } }
+</style>
+</head>
+<body>
+
+<!-- ============ หน้าเริ่มเกม ============ -->
+<div id="startScreen" class="screen">
+  <div class="logo">🌍</div>
+  <h1>Geo AR Quiz</h1>
+  <p class="sub">เกม AR ตอบชื่อสถานที่ทางภูมิศาสตร์</p>
+  <div class="howto">
+    <p>1. กด <b>ดู/พิมพ์มาร์กเกอร์</b> แล้วพิมพ์ภาพมาร์กเกอร์</p>
+    <p>2. เปิดเกมบนมือถือ (ต้องเป็น <b>HTTPS</b>) แล้วอนุญาตให้ใช้กล้อง</p>
+    <p>3. เล็งกล้องไปที่มาร์กเกอร์ → โลก 3D + คำถามจะปรากฏ</p>
+    <p>4. เลือกคำตอบให้ถูกภายใน 20 วินาที!</p>
+  </div>
+  <div class="row">
+    <button id="btnMarker" class="btn ghost">🖨️ ดู/พิมพ์มาร์กเกอร์</button>
+  </div>
+  <div class="row">
+    <button id="btnAR" class="btn primary">🕹️ เริ่มเกม AR</button>
+    <button id="btn2D" class="btn ghost">💻 เล่นแบบ 2D (ไม่ต้อง AR)</button>
+  </div>
+  <p class="note">⚠️ กล้องทำงานได้เฉพาะบน HTTPS หรือ localhost (เช่น GitHub Pages)</p>
+</div>
+
+<!-- ============ HUD ระหว่างเล่นเกม ============ -->
+<div id="hud" class="hidden">
+  <div class="topbar">
+    <div class="chip">🏆 <span id="score">0</span></div>
+    <div class="chip" id="qNum">ข้อที่ 1 / 12</div>
+    <div class="chip">⏱️ <span id="time">20</span> วิ</div>
+  </div>
+  <div class="timertrack"><div id="timerBar" class="timerfill"></div></div>
+
+  <div id="noMarker" class="hint">📷 เอากล้องเล็งไปที่มาร์กเกอร์…</div>
+
+  <div id="questionCard">
+    <div class="q-label">สถานที่นี้ตั้งอยู่ที่ไหน?</div>
+    <div id="placeName" class="q-name">—</div>
+    <div id="answers" class="answers"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast" style="display:none"></div>
+
+<!-- ============ หน้าสรุปผล ============ -->
+<div id="resultScreen" class="screen hidden">
+  <div class="logo">🏁</div>
+  <h2>จบเกม!</h2>
+  <div id="finalScore" class="final-score">0 / 12</div>
+  <p id="finalMsg"></p>
+  <div class="row">
+    <button id="btnAgain" class="btn primary">🔄 เล่นใหม่</button>
+    <button id="btnHome" class="btn ghost">🏠 หน้าแรก</button>
+  </div>
+</div>
+
+<!-- ============ คลังโปรแกรม (CDN) ============
+   ถ้าอยากใช้งานแบบออฟไลน์: ดาวนโหลดไลบรารีทั้ง 2 ไฟล์
+   แล้วแก้ src ด้านล่างเป็นไฟล์ lokal ของคุณ -->
+<script src="https://aframe.io/releases/1.3.0/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/build/three.js"></script>
+
+<script>
+/* =========================================================
+   Geo AR Quiz — เกม AR ตอบสถานที่ทางภูมิศาสตร์ (ไฟล์เดียว)
+   ไลบรารี: Three.js (r119) + AR.js 3.4.5 (image tracking)
+   ========================================================= */
+'use strict';
+
+/* ---------- 1) ข้อมูลคำถาม (เพิ่ม/แก้ไขได้ตามต้องการ) ---------- */
+const QUESTIONS = [
+  { name: 'ภูเขายุ้งเฉ่อ (Everest)',        answer: 'เนปาล',             options: ['ภูฏาน', 'เนปาล', 'จีน', 'อินเดีย'] },
+  { name: 'พีระมิดกีซ่า (Pyramids of Giza)',   answer: 'อียิปต์',           options: ['เม็กซิโก', 'กรีซ', 'อียิปต์', 'อิรัก'] },
+  { name: 'น้ำตกไนแอการา (Niagara Falls)',    answer: 'สหรัฐฯ–แคนาดา',     options: ['สหรัฐฯ–แคนาดา', 'บราซิล–ปารากวัย', 'ไนจีเรีย', 'อินโดนีเซีย'] },
+  { name: 'นครวัด (Angkor Wat)',              answer: 'กัมพูชา',           options: ['ไทย', 'เมียนมา', 'กัมพูชา', 'ลาว'] },
+  { name: 'หอไอเฟล (Eiffel Tower)',            answer: 'ฝรั่งเศส',          options: ['สเปน', 'อิตาลี', 'เยอรมนี', 'ฝรั่งเศส'] },
+  { name: 'มาชูปิกชู (Machu Picchu)',           answer: 'เปรู',              options: ['เปรู', 'โคลอมเบีย', 'เม็กซิโก', 'โบลิเวีย'] },
+  { name: 'แกรนด์แคนยอน (Grand Canyon)',       answer: 'สหรัฐฯ (แอริโซนา)',  options: ['เม็กซิโก', 'สหรัฐฯ (แอริโซนา)', 'อาร์เจนตินา', 'ชิลี'] },
+  { name: 'ทาจมาฮาล (Taj Mahal)',              answer: 'อินเดีย',            options: ['ปากีสถาน', 'บังกลาเทศ', 'อินเดีย', 'ศรีลังกา'] },
+  { name: 'ซิดนีย์โอเปร่าเฮาส์ (Sydney Opera House)', answer: 'ออสเตรเลีย',    options: ['ออสเตรเลีย', 'นิวซีแลนด์', 'แอฟริกาใต้', 'บราซิล'] },
+  { name: 'แนวปะการังเกรตแบเรียรีรีฟ (Great Barrier Reef)', answer: 'ออสเตรเลีย', options: ['ฟิลิปปินส์', 'อินโดนีเซีย', 'ออสเตรเลีย', 'ปาปัวนิวกินี'] },
+  { name: 'แม่น้ำอะเมซอน (Amazon River)',       answer: 'อเมริกาใต้ (บราซิล)', options: ['อเมริกาเหนือ', 'ยุโรป', 'อเมริกาใต้ (บราซิล)', 'แอฟริกา'] },
+  { name: 'เครมลิน (Kremlin)',                 answer: 'รัสเซีย',           options: ['รัสเซีย', 'ตุรกี', 'ฟินแลนด์', 'โปแลนด์'] },
+];
+const TIME_PER_Q = 20; // วินาทีต่อข้อ
+
+/* ---------- 2) DOM & สถานะ ---------- */
+const $ = (id) => document.getElementById(id);
+const startScreen = $('startScreen'), resultScreen = $('resultScreen');
+const hud = $('hud'), noMarker = $('noMarker'), toast = $('toast');
+const elScore = $('score'), elQNum = $('qNum'), elTime = $('time');
+const elTimerBar = $('timerBar'), elPlace = $('placeName'), elAnswers = $('answers');
+
+const ar = { mode: '2d', inited: false, found: false, group: null, globe: null, ring: null, label: null };
+const quiz = { list: [], i: 0, score: 0, playing: false, locked: false, paused: false, remaining: 0, tick: null };
+let pulseAmp = 0;
+
+/* ---------- 3) เสียง (Web Audio) ---------- */
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+function beep(freq, dur, type = 'sine', delay = 0) {
+  if (!audioCtx) return;
+  const t0 = audioCtx.currentTime + delay;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t0); o.stop(t0 + dur + 0.05);
+}
+const sfx = {
+  ok()  { beep(660, .12); beep(880, .2, 'sine', .12); },
+  bad() { beep(196, .3, 'square'); },
+  end() { beep(523, .15); beep(659, .15, 'sine', .15); beep(784, .3, 'sine', .3); },
+};
+
+/* ---------- 4) เริ่มเกม ---------- */
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function checkLibs() {
+  if (typeof THREE === 'undefined' || typeof AR === 'undefined') {
+    showToast('⚠️ โหลด Three.js / AR.js ไม่สำเร็จ — ตรวจอินเทอร์เน็ตแล้วรีเฟรช', 'bad', 4000);
+    return false;
+  }
+  return true;
+}
+
+function startGame(mode) {
+  ensureAudio();
+  ar.mode = mode;
+  startScreen.classList.add('hidden');
+  resultScreen.classList.add('hidden');
+  hud.classList.remove('hidden');
+  toast.style.display = 'none';
+
+  quiz.list = shuffle(QUESTIONS.slice());
+  quiz.i = 0; quiz.score = 0; quiz.playing = true; quiz.locked = false;
+  elScore.textContent = '0';
+
+  if (mode === 'ar') {
+    if (!checkLibs()) {
+      ar.mode = '2d'; quiz.paused = false;
+    } else {
+      try {
+        initAR();
+        quiz.paused = !ar.found;
+        noMarker.innerHTML = '📷 เอากล้องเล็งไปที่<b>มาร์กเกอร์</b>เพื่อเริ่มเกม';
+        noMarker.classList.toggle('hidden', !quiz.paused);
+      } catch (err) {
+        console.error('AR init failed:', err);
+        ar.mode = '2d'; quiz.paused = false;
+        noMarker.classList.add('hidden');
+        showToast('เริ่ม AR ไม่ได้ (ต้อง HTTPS / กล้องถูกบล็อก) — เล่นแบบ 2D แทน', 'bad', 3500);
+      }
+    }
+  } else {
+    quiz.paused = false;
+    noMarker.classList.add('hidden');
+  }
+  nextQuestion();
+}
+
+/* ---------- 5) ข้อความ & ไทม์เมอร์ ---------- */
+let toastTimer = null;
+function showToast(msg, kind = 'bad', ms = 1800) {
+  toast.textContent = msg;
+  toast.className = 'toast ' + kind;
+  toast.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast.style.display = 'none'; }, ms);
+}
+
+function renderTime() {
+  elTime.textContent = Math.ceil(quiz.remaining);
+  elTimerBar.style.width = (quiz.remaining / TIME_PER_Q * 100) + '%';
+}
+function startTimer(sec) {
+  stopTimer();
+  quiz.remaining = sec;
+  renderTime();
+  quiz.tick = setInterval(() => {
+    if (quiz.paused || quiz.locked) return;
+    quiz.remaining -= 0.1;
+    if (quiz.remaining <= 0) { quiz.remaining = 0; renderTime(); answerTimeout(); return; }
+    renderTime();
+  }, 100);
+}
+function stopTimer() { if (quiz.tick) { clearInterval(quiz.tick); quiz.tick = null; } }
+
+/* ---------- 6) คำถาม & คำตอบ ---------- */
+function nextQuestion() {
+  if (!quiz.playing) return;
+  if (quiz.i >= quiz.list.length) return finishGame();
+  quiz.locked = false;
+  const q = quiz.list[quiz.i];
+  elQNum.textContent = `ข้อที่ ${quiz.i + 1} / ${quiz.list.length}`;
+  elPlace.textContent = q.name;
+  elAnswers.innerHTML = '';
+  q.options.forEach((opt, idx) => {
+    const b = document.createElement('button');
+    b.className = 'ans';
+    b.textContent = opt;
+    b.onclick = () => answer(idx, b);
+    elAnswers.appendChild(b);
+  });
+  setLabel(q.name);
+  setRingColor(0xffd54d);
+  startTimer(TIME_PER_Q);
+}
+
+function markAll(q) {
+  [...elAnswers.children].forEach(b => {
+    b.disabled = true;
+    if (b.textContent === q.answer) b.classList.add('correct');
+  });
+}
+
+function answer(idx, btn) {
+  if (quiz.locked || !quiz.playing) return;
+  quiz.locked = true; stopTimer();
+  const q = quiz.list[quiz.i];
+  markAll(q);
+  if (q.options[idx] === q.answer) {
+    btn.classList.add('correct');
+    quiz.score++; elScore.textContent = quiz.score;
+    showToast('✅ ถูกต้อง! ' + q.answer, 'ok');
+    setRingColor(0x22c55e); sfx.ok(); pulseAmp = 1;
+  } else {
+    btn.classList.add('wrong');
+    showToast('❌ ผิด! คำตอบที่ถูก: ' + q.answer, 'bad');
+    setRingColor(0xef4444); sfx.bad(); pulseAmp = -1;
+  }
+  quiz.i++;
+  setTimeout(nextQuestion, 1800);
+}
+
+function answerTimeout() {
+  if (quiz.locked || !quiz.playing) return;
+  quiz.locked = true; stopTimer();
+  const q = quiz.list[quiz.i];
+  markAll(q);
+  showToast('⏰ เวลาหมด! คำตอบ: ' + q.answer, 'bad');
+  setRingColor(0xef4444); sfx.bad(); pulseAmp = -1;
+  quiz.i++;
+  setTimeout(nextQuestion, 1800);
+}
+
+function finishGame() {
+  quiz.playing = false; stopTimer();
+  hud.classList.add('hidden');
+  noMarker.classList.add('hidden');
+  const total = quiz.list.length, score = quiz.score, pct = Math.round(score / total * 100);
+  $('finalScore').textContent = score + ' / ' + total;
+  $('finalMsg').textContent =
+    pct >= 90 ? '🏆 ยอดนักภูมิศาสตร์!' :
+    pct >= 60 ? '🎉 เก่งมาก! อีกนิดเดียวก็เพอร์เฟกต์' :
+                '📚 ฝึกเล่นใหม่อีกครั้งนะ';
+  resultScreen.classList.remove('hidden');
+  sfx.end();
+}
+
+/* ---------- 7) ส่วน AR (Three.js + AR.js) ---------- */
+function initAR() {
+  if (ar.inited) return; // เล่นซ้ำ: ใช้ฉากเดิม (สถานะ ar.found คงอยู่)
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 10000);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(devicePixelRatio);
+  renderer.setSize(innerWidth, innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  const tracker = new AR.Tracker();
+  scene.add(tracker);
+
+  // ตรวจจับมาร์กเกอร์ hiro (ไฟล์ .psm)
+  const trackable = tracker.createTrackable('https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/data/hiro.psm');
+
+  // วัตถุ 3D: โลก + วงแหวน + ป้ายชื่อ
+  const group = new THREE.Object3D();
+  group.position.y = 0.55;
+  const globe = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.28, 1),
+    new THREE.MeshLambertMaterial({ color: 0x4da6ff, flatShading: true })
+  );
+  const wire = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.285, 1),
+    new THREE.MeshBasicMaterial({ color: 0xbfe3ff, wireframe: true, transparent: true, opacity: .35 })
+  );
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.45, 0.018, 12, 64),
+    new THREE.MeshBasicMaterial({ color: 0xffd54d })
+  );
+  ring.rotation.x = Math.PI / 2.4;
+  const label = makeLabel('Geo AR Quiz');
+  group.add(globe, wire, ring, label);
+  trackable.add(group);
+
+  scene.add(new THREE.AmbientLight(0xffffff, .9));
+  const dl = new THREE.DirectionalLight(0xffffff, .8);
+  dl.position.set(1, 2, 2); scene.add(dl);
+
+  trackable.addEventListener('markerFound', () => {
+    ar.found = true;
+    noMarker.classList.add('hidden');
+    if (quiz.playing && ar.mode === 'ar') quiz.paused = false;
+  });
+  trackable.addEventListener('markerLost', () => {
+    ar.found = false;
+    if (quiz.playing && ar.mode === 'ar') {
+      quiz.paused = true;
+      noMarker.innerHTML = '📷 มาร์กเกอร์หายไป — เอากล้องเล็งอีกครั้ง';
+      noMarker.classList.remove('hidden');
+    }
+  });
+
+  tracker.init({ sourceType: 'webcam', debugUIhide: true });
+
+  ar.inited = true; ar.group = group; ar.globe = globe; ar.ring = ring; ar.label = label;
+
+  const clock = new THREE.Clock();
+  renderer.setAnimationLoop(() => {
+    const t = clock.getElapsedTime();
+    globe.rotation.y = t * 0.6;
+    wire.rotation.y = -t * 0.4;
+    ring.rotation.z = t * 0.8;
+    group.position.y = 0.55 + Math.sin(t * 2) * 0.02;
+    if (Math.abs(pulseAmp) > 0.01) {
+      group.scale.setScalar(1 + pulseAmp * 0.12 * Math.sin(t * 30));
+      pulseAmp *= 0.93;
+    } else {
+      group.scale.setScalar(1); pulseAmp = 0;
+    }
+    renderer.render(scene, camera);
+  });
+
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+}
+
+/* ป้ายข้อความ 3D (Canvas Texture) */
+function labelCanvas(text) {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 256;
+  const x = c.getContext('2d');
+  x.fillStyle = 'rgba(8,15,35,.8)';
+  x.beginPath();
+  x.moveTo(60, 0); x.arcTo(1024, 0, 1024, 256, 60); x.arcTo(1024, 256, 0, 256, 60);
+  x.arcTo(0, 256, 0, 0, 60); x.arcTo(0, 0, 1024, 0, 60); x.closePath(); x.fill();
+  let size = 88;
+  x.font = 'bold ' + size + 'px "Segoe UI", Tahoma, sans-serif';
+  while (x.measureText(text).width > 920 && size > 28) {
+    size -= 4;
+    x.font = 'bold ' + size + 'px "Segoe UI", Tahoma, sans-serif';
+  }
+  x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(text, 512, 128);
+  return c;
+}
+function makeLabel(text) {
+  const tex = new THREE.CanvasTexture(labelCanvas(text));
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
+  sprite.scale.set(1.2, 0.3, 1);
+  sprite.position.y = 0.78;
+  return sprite;
+}
+function setLabel(text) {
+  if (!ar.inited || !ar.label) return;
+  const old = ar.label.material.map;
+  ar.label.material.map = new THREE.CanvasTexture(labelCanvas(text));
+  ar.label.material.needsUpdate = true;
+  if (old) old.dispose();
+}
+function setRingColor(hex) { if (ar.ring) ar.ring.material.color.setHex(hex); }
+
+/* ---------- 8) หน้าพิมพ์มาร์กเกอร์ (hiro pattern 7×7) ---------- */
+function openMarkerPrint() {
+  const H = [
+    [1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,1],
+    [1,0,1,1,1,0,1],
+    [1,0,1,1,0,0,1],
+    [1,0,0,1,1,0,1],
+    [1,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1],
+  ];
+  const cells = H.flat().map(v => `<div class="c${v ? '' : ' w'}"></div>`).join('');
+  const w = window.open('', '_blank');
+  w.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="utf-8">
+  <title>มาร์กเกอร์ AR — Geo AR Quiz</title>
+  <style>
+    body{font-family:sans-serif;text-align:center;padding:32px;color:#222}
+    .m{width:280px;height:280px;margin:24px auto;display:grid;
+       grid-template-columns:repeat(7,40px);grid-template-rows:repeat(7,40px)}
+    .c{background:#000}.c.w{background:#fff}
+    .tip{max-width:430px;margin:12px auto;font-size:14px;line-height:1.7}
+    button{padding:10px 22px;font-size:16px;border-radius:10px;border:0;
+           background:#4f46e5;color:#fff;cursor:pointer}
+  </style></head><body>
+  <h2>มาร์กเกอร์สำหรับเกม (พิมพ์แล้ววางบนพื้น)</h2>
+  <div class="m">${cells}</div>
+  <p class="tip">💡 เลือกพิมพ์ <b>Scale 100%</b> จะได้ขนาดประมาณ 7×7 ซม.<br>
+  วางบนพื้นราบ แสงสว่าง แล้วเล็งกล้อง</p>
+  <button onclick="window.print()">🖨️ พิมพ์</button>
+  <script>setTimeout(function(){ window.print(); }, 500);<\/script>
+  </body></html>`);
+  w.document.close();
+}
+
+/* ---------- 9) เชื่อมปุ่ม ---------- */
+$('btnAR').onclick     = () => startGame('ar');
+$('btn2D').onclick     = () => startGame('2d');
+$('btnMarker').onclick = openMarkerPrint;
+$('btnAgain').onclick  = () => startGame(ar.mode);
+$('btnHome').onclick   = () => {
+  resultScreen.classList.add('hidden');
+  startScreen.classList.remove('hidden');
+};
+</script>
+</body>
+</html>
