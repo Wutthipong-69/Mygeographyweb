@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Geo AR Quiz — เกม AR ส่องมาร์กเกอร์</title>
+<title>Geo AR Quiz — เกม AR Top-View</title>
 
-<!-- โหลด A-Frame และ AR.js เวอร์ชัน Stable CDN -->
+<!-- โหลด A-Frame และ AR.js Stable CDN -->
 <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
 <script src="https://unpkg.com/@ar-js-org/ar.js@3.4.5/aframe/build/aframe-ar.js"></script>
 
@@ -13,7 +13,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, sans-serif; user-select: none; }
 
-/* บังคับวิดีโอกล้องให้อยู่ด้านหลัง Canvas ของ A-Frame */
+/* จัดลำดับ layer วิดีโอกล้องให้อยู่หลังสุด */
 video {
   position: fixed !important; top: 0 !important; left: 0 !important;
   width: 100% !important; height: 100% !important; object-fit: cover !important; z-index: -2 !important;
@@ -25,7 +25,7 @@ video {
 
 .hidden { display: none !important; }
 
-/* หน้าต้อนรับ overlay */
+/* หน้าเริ่มเกม */
 .screen {
   position: fixed; inset: 0; z-index: 100;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -40,29 +40,35 @@ video {
 .btn.ghost { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); }
 .btn:active { transform: scale(0.95); }
 
-/* HUD เกมบนหน้าจอ */
+/* HUD UI บนหน้าจอ (Top-View Viewport) */
 #hud {
   position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column;
   justify-content: space-between; padding: 16px; pointer-events: none;
 }
 .topbar { display: flex; justify-content: space-between; gap: 8px; }
-.chip { background: rgba(7,11,24,0.85); border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 999px; padding: 8px 16px; font-size: 14px; font-weight: bold; color: #fff; backdrop-filter: blur(6px); }
+.chip { 
+  background: rgba(7,11,24,0.88); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 999px; padding: 8px 16px; font-size: 14px; font-weight: bold; color: #fff; backdrop-filter: blur(8px); 
+}
 
 #noMarkerAlert {
-  align-self: center; background: rgba(7,11,24,0.9); border: 1px solid #fbbf24;
+  align-self: center; background: rgba(7,11,24,0.92); border: 1px solid #fbbf24;
   color: #fbbf24; padding: 12px 24px; border-radius: 30px; font-size: 15px; font-weight: bold; text-align: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
 
+/* Card คำถามถูกล็อกให้อยู่ในมุมมองอ่านง่ายเสมอ */
 #questionCard {
-  pointer-events: auto; background: rgba(7,11,24,0.92); border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 18px; padding: 16px; backdrop-filter: blur(10px); max-width: 500px; width: 100%; margin: 0 auto;
+  pointer-events: auto; background: rgba(7,11,24,0.92); border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 18px; padding: 18px; backdrop-filter: blur(12px); max-width: 500px; width: 100%; margin: 0 auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
 }
-.q-title { font-size: 18px; font-weight: bold; text-align: center; color: #38bdf8; margin-bottom: 12px; }
+.q-title { font-size: 18px; font-weight: bold; text-align: center; color: #38bdf8; margin-bottom: 14px; line-height: 1.4; }
 .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .ans-btn {
   border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: #fff;
-  border-radius: 12px; padding: 12px 10px; font-size: 15px; cursor: pointer; font-weight: 600;
+  border-radius: 12px; padding: 14px 10px; font-size: 15px; cursor: pointer; font-weight: 600;
+  transition: all 0.15s ease;
 }
 .ans-btn.correct { background: #16a34a !important; border-color: #22c55e !important; }
 .ans-btn.wrong { background: #dc2626 !important; border-color: #ef4444 !important; }
@@ -73,7 +79,7 @@ video {
 <!-- หน้าเริ่มเกม -->
 <div id="startScreen" class="screen">
   <h1 style="font-size: 32px;">🌍 Geo AR Quiz</h1>
-  <p style="color: #9fb3d1; max-width: 340px;">ส่องกล้องไปที่มาร์กเกอร์ Hiro เพื่อให้ลูกโลก 3D ปรากฏขึ้นมา แล้วตอบคำถามภูมิศาสตร์</p>
+  <p style="color: #9fb3d1; max-width: 340px;">ส่องกล้องไปที่มาร์กเกอร์ Hiro เพื่อแสดงโมเดล 3D และเริ่มตอบคำถาม</p>
   <button id="btnStart" class="btn">🕹️ เปิดกล้องเริ่มเล่น AR</button>
   <button id="btnMarker" class="btn ghost">🖨️ เปิดดูมาร์กเกอร์ (Hiro)</button>
 </div>
@@ -98,20 +104,23 @@ video {
   
   <!-- AR Marker (Hiro) -->
   <a-marker preset="hiro" id="hiroMarker">
-    <!-- กลุ่มวัตถุ 3D: ลูกโลกหมุน + วงแหวนลอยรอบ -->
+    <!-- กลุ่มวัตถุ 3D ปรับทิศทางให้แสดงผลสวยงามเมื่อมองจากมุมบน (Top-View) -->
     <a-entity position="0 0 0">
-      <!-- ลูกโลก 3D ด้านใน -->
-      <a-sphere position="0 0.5 0" radius="0.5" color="#38bdf8"
+      <!-- 1. ลูกโลก 3D -->
+      <a-sphere position="0 0.6 0" radius="0.45" color="#38bdf8"
                 animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear">
       </a-sphere>
-      <!-- ตะแกรงลูกโลกด้านนอก -->
-      <a-sphere position="0 0.5 0" radius="0.52" color="#ffffff" wireframe="true" opacity="0.4"
+      <!-- 2. ตะแกรงโครงสร้างลูกโลก -->
+      <a-sphere position="0 0.6 0" radius="0.47" color="#ffffff" wireframe="true" opacity="0.35"
                 animation="property: rotation; to: 0 -360 0; loop: true; dur: 12000; easing: linear">
       </a-sphere>
-      <!-- วงแหวนรอบลูกโลก -->
-      <a-torus position="0 0.5 0" radius="0.8" radius-tubular="0.02" color="#fbbf24" rotation="70 0 0"
-               animation="property: rotation; to: 70 360 0; loop: true; dur: 6000; easing: linear">
+      <!-- 3. วงแหวนทองรอบลูกโลก ปรับองศาเข้าหากล้อง -->
+      <a-torus position="0 0.6 0" radius="0.75" radius-tubular="0.02" color="#fbbf24" rotation="45 0 0"
+               animation="property: rotation; to: 45 360 0; loop: true; dur: 6000; easing: linear">
       </a-torus>
+      <!-- 4. ฐานแสงเรืองรองใต้ลูกโลกบนมาร์กเกอร์ -->
+      <a-ring position="0 0.05 0" rotation="-90 0 0" radius-inner="0.1" radius-outer="0.8" color="#38bdf8" opacity="0.6"
+              animation="property: scale; to: 1.1 1.1 1.1; dir: alternate; loop: true; dur: 1500"></a-ring>
     </a-entity>
   </a-marker>
 
@@ -133,7 +142,6 @@ const QUESTIONS = [
 let qIndex = 0;
 let score = 0;
 let isLocked = false;
-let isMarkerFound = false;
 
 const startScreen = document.getElementById('startScreen');
 const hud = document.getElementById('hud');
@@ -189,17 +197,15 @@ function checkAnswer(selectedOpt, btn) {
   }, 1600);
 }
 
-// ตรวจจับ Marker เพื่อซ่อน/แสดง การ์ดคำถาม
+// ตรวจจับ Marker
 const marker = document.getElementById('hiroMarker');
 
 marker.addEventListener('markerFound', () => {
-  isMarkerFound = true;
   noMarkerAlert.classList.add('hidden');
   questionCard.classList.remove('hidden');
 });
 
 marker.addEventListener('markerLost', () => {
-  isMarkerFound = false;
   noMarkerAlert.classList.remove('hidden');
   questionCard.classList.add('hidden');
 });
