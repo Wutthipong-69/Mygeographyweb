@@ -5,42 +5,63 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Geo AR Quiz — เกม AR ตอบชื่อสถานที่ทางภูมิศาสตร์</title>
 
-<!-- โหลด A-Frame และ AR.js CDN เวอร์ชันเสถียรที่สุด -->
+<!-- โหลด A-Frame และ AR.js -->
 <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
 <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
 <style>
-/* ================= CSS ================= */
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; overflow: hidden; background: #070b18; color: #e6edf7;
+html, body { height: 100%; width: 100%; overflow: hidden; background: #070b18; color: #e6edf7;
   font-family: "Sarabun", "Segoe UI", Tahoma, sans-serif; user-select: none; }
 
-/* ซ่อนและจัดระเบียบปุ่ม UI ของ A-Frame/AR.js */
-.a-enter-vr, .a-orientation-modal { display: none !important; }
-body { position: relative; }
+/* จัดระเบียบให้ Video ของกล้องอยู่ด้านหลังสุดเสมอ */
+video {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  z-index: 1 !important;
+}
 
+/* บังคับ Canvas ของ A-Frame ให้อยู่ชั้นเหนือวิดีโอ */
+.a-canvas {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 2 !important;
+}
+
+/* ซ่อนซีน AR ไว้ก่อนจนกว่าจะกดเริ่มเล่นแบบ AR */
+a-scene {
+  display: none;
+}
+
+.a-enter-vr, .a-orientation-modal { display: none !important; }
 .hidden { display: none !important; }
 
-/* หน้าต้อนรับ และ สรุปผล */
+/* หน้าต้อนรับ และ สรุปผล อยู่ชั้นสูงสุด (z-index: 100) */
 .screen { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 14px; padding: 20px; text-align: center;
   background: radial-gradient(1200px 600px at 50% -10%, #16233f 0%, #070b18 60%); }
 .logo { font-size: 64px; }
 h1 { font-size: 32px; font-weight: 800; }
-h2 { font-size: 28px; }
 .sub { color: #9fb3d1; font-size: 15px; }
 .howto { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
   border-radius: 14px; padding: 12px 18px; max-width: 430px; text-align: left;
   font-size: 14px; line-height: 1.7; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
-.btn { border: 0; border-radius: 12px; padding: 13px 20px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; transition: 0.2s; }
+.btn { border: 0; border-radius: 12px; padding: 13px 20px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .btn.primary { background: linear-gradient(135deg, #38bdf8, #6366f1); color: #fff;
   box-shadow: 0 8px 24px rgba(56,189,248,.35); }
 .btn.ghost { background: rgba(255,255,255,.1); color: #e6edf7; border: 1px solid rgba(255,255,255,.18); }
 .btn:active { transform: scale(.96); }
 .note { color: #fbbf24; font-size: 13px; max-width: 430px; }
 
-/* HUD หน้าจอเล่นเกม */
+/* HUD หน้าจอเล่นเกม (z-index: 50) */
 #hud { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column;
   padding: 12px; pointer-events: none; }
 .topbar { display: flex; justify-content: space-between; gap: 8px; }
@@ -48,7 +69,7 @@ h2 { font-size: 28px; }
   border-radius: 999px; padding: 8px 14px; font-size: 14px; font-weight: 600; backdrop-filter: blur(6px); }
 .timertrack { height: 6px; border-radius: 999px; background: rgba(255,255,255,.15);
   margin-top: 10px; overflow: hidden; }
-.timerfill { height: 100%; width: 100%; background: linear-gradient(90deg, #34d399, #fbbf24, #f87171); transition: width 0.1s linear; }
+.timerfill { height: 100%; width: 100%; background: linear-gradient(90deg, #34d399, #fbbf24, #f87171); }
 
 .hint { position: absolute; top: 35%; left: 50%; transform: translate(-50%,-50%);
   background: rgba(7,11,24,.85); border: 1px solid rgba(255,255,255,.18);
@@ -61,12 +82,9 @@ h2 { font-size: 28px; }
 .q-name { font-size: 20px; font-weight: 700; text-align: center; margin: 6px 0 14px; color: #38bdf8; }
 .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .ans { border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.08); color: #e6edf7;
-  border-radius: 12px; padding: 12px 10px; font-size: 15px; font-family: inherit; cursor: pointer; transition: 0.15s; }
-.ans:hover { background: rgba(255,255,255,.16); }
-.ans:disabled { cursor: default; opacity: .85; }
+  border-radius: 12px; padding: 12px 10px; font-size: 15px; font-family: inherit; cursor: pointer; }
 .ans.correct { background: #16a34a !important; border-color: #22c55e !important; color: #fff; }
-.ans.wrong { background: #dc2626 !important; border-color: #ef4444 !important; color: #fff; animation: shake .4s; }
-@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+.ans.wrong { background: #dc2626 !important; border-color: #ef4444 !important; color: #fff; }
 
 .toast { position: fixed; top: 25%; left: 50%; transform: translate(-50%,-50%); z-index: 60;
   padding: 12px 20px; border-radius: 12px; font-size: 16px; font-weight: 700;
@@ -75,33 +93,30 @@ h2 { font-size: 28px; }
 .toast.bad { border-color: #ef4444; color: #f87171; }
 
 .final-score { font-size: 48px; font-weight: 800; color: #38bdf8; }
-@media (max-width: 480px) { .q-name { font-size: 17px; } .ans { font-size: 13px; } }
 </style>
 </head>
 <body>
 
-<!-- ============ หน้าเริ่มเกม ============ -->
+<!-- หน้าเริ่มเกม -->
 <div id="startScreen" class="screen">
   <div class="logo">🌍</div>
   <h1>Geo AR Quiz</h1>
   <p class="sub">เกม AR ตอบชื่อสถานที่ทางภูมิศาสตร์</p>
   <div class="howto">
-    <p>1. กด <b>ดู/พิมพ์มาร์กเกอร์</b> แล้วเปิดภาพมาร์กเกอร์ (Hiro)</p>
-    <p>2. เปิดเกมบนมือถือผ่าน <b>HTTPS</b> หรือ Localhost แล้วเปิดกล้อง</p>
-    <p>3. ส่องกล้องไปที่มาร์กเกอร์ → โลก 3D จะปรากฏขึ้น!</p>
-    <p>4. เลือกคำตอบที่ถูกต้องภายในเวลา 20 วินาที</p>
+    <p>1. กด <b>ดูมาร์กเกอร์</b> แล้วเปิดภาพ Hiro ไว้บนคอมฯ หรือมือถืออีกเครื่อง</p>
+    <p>2. กด <b>เริ่มเกม AR</b> และอนุญาตการใช้กล้องใน Safari</p>
+    <p>3. ส่องกล้องไปที่รูปมาร์กเกอร์เพื่อเริ่มเล่นทันที</p>
   </div>
   <div class="row">
-    <button id="btnMarker" class="btn ghost">🖨️ ดู/พิมพ์มาร์กเกอร์ (Hiro)</button>
+    <button id="btnMarker" class="btn ghost">🖨️ ดูมาร์กเกอร์ (Hiro)</button>
   </div>
   <div class="row">
-    <button id="btnAR" class="btn primary">🕹️ เริ่มเกม AR</button>
-    <button id="btn2D" class="btn ghost">💻 เล่นแบบ 2D (โหมดปกติ)</button>
+    <button id="btnAR" class="btn primary">🕹️ เริ่มเกม AR (เปิดกล้อง)</button>
+    <button id="btn2D" class="btn ghost">💻 เล่นแบบ 2D (ไม่ใช้กล้อง)</button>
   </div>
-  <p class="note">⚠️ การใช้งานกล้องต้องทำผ่าน HTTPS หรือ localhost เท่านั้น</p>
 </div>
 
-<!-- ============ HUD ระหว่างเล่นเกม ============ -->
+<!-- HUD หน้าเล่นเกม -->
 <div id="hud" class="hidden">
   <div class="topbar">
     <div class="chip">🏆 คะแนน: <span id="score">0</span></div>
@@ -121,7 +136,7 @@ h2 { font-size: 28px; }
 
 <div id="toast" class="toast" style="display:none"></div>
 
-<!-- ============ หน้าสรุปผล ============ -->
+<!-- หน้าสรุปผล -->
 <div id="resultScreen" class="screen hidden">
   <div class="logo">🏁</div>
   <h2>จบเกม!</h2>
@@ -133,19 +148,14 @@ h2 { font-size: 28px; }
   </div>
 </div>
 
-<!-- ============ A-FRAME AR SCENE ============ -->
-<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;" vr-mode-ui="enabled: false">
+<!-- A-FRAME AR SCENE -->
+<a-scene id="arScene" embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false">
   <a-marker preset="hiro" id="hiroMarker">
-    <!-- วัตถุ 3D จำลองลูกโลก และวงแหวน -->
-    <a-entity id="arContainer" position="0 0.5 0">
-      <!-- โลก 3D -->
-      <a-sphere id="arGlobe" radius="0.4" color="#4da6ff" wireframe="false" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear"></a-sphere>
-      <!-- ตาข่ายรองพื้นโลก -->
+    <a-entity position="0 0.5 0">
+      <a-sphere radius="0.4" color="#4da6ff" animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear"></a-sphere>
       <a-sphere radius="0.41" color="#bfe3ff" wireframe="true" opacity="0.35" animation="property: rotation; to: 0 -360 0; loop: true; dur: 12000; easing: linear"></a-sphere>
-      <!-- วงแหวน -->
       <a-torus id="arRing" radius="0.6" radius-tubular="0.015" color="#ffd54d" rotation="70 0 0" animation="property: rotation; to: 70 0 360; loop: true; dur: 6000; easing: linear"></a-torus>
-      <!-- ป้ายชื่อสถานที่แบบ 3D -->
-      <a-text id="arText" value="Geo AR Quiz" align="center" position="0 0.7 0" scale="0.8 0.8 0.8" color="#ffffff" font="kelsonsans"></a-text>
+      <a-text id="arText" value="Geo AR Quiz" align="center" position="0 0.7 0" scale="0.8 0.8 0.8" color="#ffffff"></a-text>
     </a-entity>
   </a-marker>
   <a-entity camera></a-entity>
@@ -154,9 +164,8 @@ h2 { font-size: 28px; }
 <script>
 'use strict';
 
-/* ---------- 1) ข้อมูลคำถาม ---------- */
 const QUESTIONS = [
-  { name: 'ยอดเขายอดเขาเอเวอเรสต์ (Everest)', answer: 'เนปาล', options: ['ภูฏาน', 'เนปาล', 'จีน', 'อินเดีย'] },
+  { name: 'ยอดเขาเอเวอเรสต์ (Everest)', answer: 'เนปาล', options: ['ภูฏาน', 'เนปาล', 'จีน', 'อินเดีย'] },
   { name: 'พีระมิดกีซ่า (Pyramids of Giza)', answer: 'อียิปต์', options: ['เม็กซิโก', 'กรีซ', 'อียิปต์', 'อิรัก'] },
   { name: 'น้ำตกไนแอการา (Niagara Falls)', answer: 'สหรัฐฯ–แคนาดา', options: ['สหรัฐฯ–แคนาดา', 'บราซิล–ปารากวัย', 'ไนจีเรีย', 'อินโดนีเซีย'] },
   { name: 'นครวัด (Angkor Wat)', answer: 'กัมพูชา', options: ['ไทย', 'เมียนมา', 'กัมพูชา', 'ลาว'] },
@@ -171,7 +180,6 @@ const QUESTIONS = [
 ];
 const TIME_PER_Q = 20;
 
-/* ---------- 2) DOM & สถานะ ---------- */
 const $ = (id) => document.getElementById(id);
 const startScreen = $('startScreen'), resultScreen =$('resultScreen');
 const hud = $('hud'), noMarker = $('noMarker'), toast =$('toast');
@@ -181,30 +189,6 @@ const elTimerBar = $('timerBar'), elPlace = $('placeName'), elAnswers =$('answer
 const ar = { mode: '2d', found: false };
 const quiz = { list: [], i: 0, score: 0, playing: false, locked: false, paused: false, remaining: 0, tick: null };
 
-/* ---------- 3) เสียง (Web Audio) ---------- */
-let audioCtx = null;
-function ensureAudio() {
-  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
-  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-}
-function beep(freq, dur, type = 'sine', delay = 0) {
-  if (!audioCtx) return;
-  const t0 = audioCtx.currentTime + delay;
-  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-  o.type = type; o.frequency.value = freq;
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(0.2, t0 + 0.02);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  o.connect(g); g.connect(audioCtx.destination);
-  o.start(t0); o.stop(t0 + dur + 0.05);
-}
-const sfx = {
-  ok()  { beep(660, .12); beep(880, .2, 'sine', .12); },
-  bad() { beep(196, .3, 'square'); },
-  end() { beep(523, .15); beep(659, .15, 'sine', .15); beep(784, .3, 'sine', .3); },
-};
-
-/* ---------- 4) เริ่มเกม ---------- */
 function shuffle(a) {
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -213,13 +197,33 @@ function shuffle(a) {
   return a;
 }
 
-function startGame(mode) {
-  ensureAudio();
+// ฟังก์ชันขออนุญาตใช้กล้องบน Safari แบบบังคับเปิด
+async function enableCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    // ปิดสตรีมทดสอบเพื่อส่งต่อให้ AR.js
+    stream.getTracks().forEach(track => track.stop());
+    return true;
+  } catch (err) {
+    alert('กรุณาอนุญาตการใช้งานกล้องใน Safari เพื่อเล่นเกม AR');
+    return false;
+  }
+}
+
+async function startGame(mode) {
   ar.mode = mode;
+
+  if (mode === 'ar') {
+    const camOk = await enableCamera();
+    if (!camOk) return;
+    $('arScene').style.display = 'block';
+  } else {
+    $('arScene').style.display = 'none';
+  }
+
   startScreen.classList.add('hidden');
   resultScreen.classList.add('hidden');
   hud.classList.remove('hidden');
-  toast.style.display = 'none';
 
   quiz.list = shuffle(QUESTIONS.slice());
   quiz.i = 0; quiz.score = 0; quiz.playing = true; quiz.locked = false;
@@ -234,16 +238,6 @@ function startGame(mode) {
     noMarker.classList.add('hidden');
   }
   nextQuestion();
-}
-
-/* ---------- 5) ข้อความ & ไทม์เมอร์ ---------- */
-let toastTimer = null;
-function showToast(msg, kind = 'bad', ms = 1800) {
-  toast.textContent = msg;
-  toast.className = 'toast ' + kind;
-  toast.style.display = 'block';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { toast.style.display = 'none'; }, ms);
 }
 
 function renderTime() {
@@ -263,7 +257,6 @@ function startTimer(sec) {
 }
 function stopTimer() { if (quiz.tick) { clearInterval(quiz.tick); quiz.tick = null; } }
 
-/* ---------- 6) คำถาม & คำตอบ ---------- */
 function nextQuestion() {
   if (!quiz.playing) return;
   if (quiz.i >= quiz.list.length) return finishGame();
@@ -280,10 +273,8 @@ function nextQuestion() {
     elAnswers.appendChild(b);
   });
   
-  // อัปเดตข้อความบนโมเดล AR 3D
   const arText = $('arText');
   if (arText) arText.setAttribute('value', q.name);
-  setRingColor('#ffd54d');
   
   startTimer(TIME_PER_Q);
 }
@@ -303,12 +294,8 @@ function answer(idx, btn) {
   if (q.options[idx] === q.answer) {
     btn.classList.add('correct');
     quiz.score++; elScore.textContent = quiz.score;
-    showToast('✅ ถูกต้อง! ' + q.answer, 'ok');
-    setRingColor('#22c55e'); sfx.ok();
   } else {
     btn.classList.add('wrong');
-    showToast('❌ ผิด! คำตอบที่ถูก: ' + q.answer, 'bad');
-    setRingColor('#ef4444'); sfx.bad();
   }
   quiz.i++;
   setTimeout(nextQuestion, 1800);
@@ -319,8 +306,6 @@ function answerTimeout() {
   quiz.locked = true; stopTimer();
   const q = quiz.list[quiz.i];
   markAll(q);
-  showToast('⏰ เวลาหมด! คำตอบ: ' + q.answer, 'bad');
-  setRingColor('#ef4444'); sfx.bad();
   quiz.i++;
   setTimeout(nextQuestion, 1800);
 }
@@ -329,22 +314,11 @@ function finishGame() {
   quiz.playing = false; stopTimer();
   hud.classList.add('hidden');
   noMarker.classList.add('hidden');
-  const total = quiz.list.length, score = quiz.score, pct = Math.round(score / total * 100);
+  const total = quiz.list.length, score = quiz.score;
   $('finalScore').textContent = score + ' / ' + total;
-  $('finalMsg').textContent =
-    pct >= 90 ? '🏆 ยอดนักภูมิศาสตร์!' :
-    pct >= 60 ? '🎉 เก่งมาก! อีกนิดเดียวก็เพอร์เฟกต์' :
-                '📚 ฝึกเล่นใหม่อีกครั้งนะ';
   resultScreen.classList.remove('hidden');
-  sfx.end();
 }
 
-function setRingColor(hex) {
-  const ring = $('arRing');
-  if (ring) ring.setAttribute('color', hex);
-}
-
-/* ---------- 7) ตรวจจับ AR Marker Event ---------- */
 window.addEventListener('load', () => {
   const marker = $('hiroMarker');
   if (marker) {
@@ -364,35 +338,16 @@ window.addEventListener('load', () => {
   }
 });
 
-/* ---------- 8) หน้าพิมพ์มาร์กเกอร์ (Hiro Marker Standard) ---------- */
 function openMarkerPrint() {
-  const w = window.open('', '_blank');
-  w.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="utf-8">
-  <title>มาร์กเกอร์ AR (Hiro) — Geo AR Quiz</title>
-  <style>
-    body{font-family:sans-serif;text-align:center;padding:32px;color:#222}
-    .img-box { margin: 20px auto; max-width: 300px; border: 2px solid #ccc; padding: 10px; border-radius: 8px; }
-    img { width: 100%; height: auto; }
-    .tip{max-width:430px;margin:12px auto;font-size:14px;line-height:1.7}
-    button{padding:10px 22px;font-size:16px;border-radius:10px;border:0;
-           background:#4f46e5;color:#fff;cursor:pointer}
-  </style></head><body>
-  <h2>มาร์กเกอร์ Hiro สำหรับเล่นเกม AR</h2>
-  <div class="img-box">
-    <img src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" alt="Hiro Marker">
-  </div>
-  <p class="tip">💡 สามารถเปิดภาพนี้บนหน้าจออุปกรณ์อื่น หรือพิมพ์ลงกระดาษแล้วส่องกล้องเล่นได้เลย</p>
-  <button onclick="window.print()">🖨️ พิมพ์มาร์กเกอร์</button>
-  </body></html>`);
-  w.document.close();
+  window.open('https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png', '_blank');
 }
 
-/* ---------- 9) เชื่อมปุ่ม event ---------- */
 $('btnAR').onclick     = () => startGame('ar');
 $('btn2D').onclick     = () => startGame('2d');$('btnMarker').onclick = openMarkerPrint;
 $('btnAgain').onclick  = () => startGame(ar.mode);$('btnHome').onclick   = () => {
   resultScreen.classList.add('hidden');
   startScreen.classList.remove('hidden');
+  $('arScene').style.display = 'none';
 };
 </script>
 </body>
